@@ -1,0 +1,10 @@
+<launch>
+    <!--node name="turtle_teleop_key"	pkg="turtlesim"	type="turtle_teleop_key"	output="screen">
+      <remap from="/turtle1/cmd_vel" to="/aux_cmd_vel"/>
+    </node-->
+    <node name="teleop_twist_keyboard" pkg="teleop_twist_keyboard" type="teleop_twist_keyboard.py" output="screen"/>
+    <node name="turtlesim_pantalla" pkg="turtlesim" type="turtlesim_node" output="screen"/>
+    <node name="control1" pkg="prueba1" type="control1.py" output="screen"/>
+    <node name="force_bridge" pkg="prueba1" type="force_bridge.py" output="screen"/>
+
+</launch>
