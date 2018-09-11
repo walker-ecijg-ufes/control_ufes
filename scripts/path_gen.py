@@ -5,11 +5,10 @@ from tf.transformations import quaternion_from_euler as qfe
 from nav_msgs.msg import Path
 from nav_msgs.msg import Odometry
 from std_msgs.msg import Header
+from std_msgs.msg import Float32
 from geometry_msgs.msg import Pose
 from geometry_msgs.msg import PoseStamped
 from geometry_msgs.msg import Point
-import matplotlib.pyplot as plt
-from sys import stdin
 
 class PathGen():
 	def __init__(self):
@@ -17,13 +16,15 @@ class PathGen():
 		'''Parameters'''
 		self.path_topic = self.rospy.get_param("~path_topic","/path")
 		self.odom_topic = self.rospy.get_param("~odom_topic","/RosAria/pose")
-		self.desired_pos_topic = self.rospy.get_param("~desired_pos_topic","/desired_pos")
+		self.error_pos_topic = self.rospy.get_param("~error_pos_topic","/error_pos")
+		self.theta_ref_topic = self.rospy.get_param("~theta_ref_topic","/theta_ref")
 		self.route = self.rospy.get_param("~route","soft_turn_curve")
 		self.path_rate = self.rospy.get_param("~path_rate",10)
 		self.frame_id = self.rospy.get_param("~frame_id","odom")
 		'''Publisher'''
 		self.pub_path = self.rospy.Publisher(self.path_topic, Path, queue_size = 5)
-		self.pub_desired_pos = self.rospy.Publisher(self.desired_pos_topic, Point, queue_size = 5)
+		self.pub_error_pos = self.rospy.Publisher(self.error_pos_topic, Point, queue_size = 5)
+		self.pub_theta_ref = self.rospy.Publisher(self.theta_ref_topic, Float32, queue_size = 5)
 		'''Subscriber'''
 		self.sub_odom = self.rospy.Subscriber(self.odom_topic, Odometry, self.odom_callback)
 		'''Node Configuration'''
@@ -33,6 +34,7 @@ class PathGen():
 		self.aux_header = Header()
 		self.aux_pose_stamped = PoseStamped()
 		self.point = Point()
+		self.theta_ref = Float32()
 		self.seq = self.x_bot = self.y_bot = 0
 		self.change = False
 		self.main_path()
@@ -105,12 +107,15 @@ class PathGen():
 			flag_end_of_path = 1
 		else:
 			flag_end_of_path = 0
-		self.point.z = self.theta_path[loc]
+		self.point.z = 0
 		self.point.x = xd_desired - self.x_bot
-		self.point.y = yd_desired - self.x_bot
-		self.pub_desired_pos.publish(self.point)
+		self.point.y = yd_desired - self.y_bot
+		self.theta_ref.data = self.theta_path[loc]
+		self.pub_error_pos.publish(self.point)
+		self.pub_theta_ref.publish(self.theta_ref)
 
 	def main_path(self):
+		rospy.loginfo("Path OK")
 		exit = False
 		while not self.rospy.is_shutdown() and not(exit):
 			if self.route == 'straight':
@@ -136,6 +141,7 @@ class PathGen():
 
 if __name__ == '__main__':
 	try:
+		rospy.loginfo("Starting Path Generator")
 		sw = PathGen()
 	except rospy.ROSInterruptException:
 		pass
