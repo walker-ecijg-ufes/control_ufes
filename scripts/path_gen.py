@@ -141,7 +141,7 @@ class PathGen():
 
 if __name__ == '__main__':
 	try:
-		rospy.loginfo("Starting Path Generator")
+		print("Starting Path Generator")
 		sw = PathGen()
 	except rospy.ROSInterruptException:
 		pass

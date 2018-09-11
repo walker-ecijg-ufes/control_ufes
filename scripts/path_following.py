@@ -70,7 +70,7 @@ class PathFollow():
 		self.pub_error_theta.publish(self.error_theta)
 
 	def main_path(self):
-		rospy.loginfo("Control OK")
+		rospy.loginfo("Path Follow OK")
 		while not self.rospy.is_shutdown():
 			if self.change1 and self.change2:
 				self.control_path()
@@ -78,7 +78,7 @@ class PathFollow():
 
 if __name__ == '__main__':
 	try:
-		rospy.loginfo("Starting Path Following")
+		print("Starting Path Following")
 		sw = PathFollow()
 	except rospy.ROSInterruptException:
 		pass

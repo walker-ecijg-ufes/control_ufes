@@ -8,33 +8,46 @@ class Control():
 	def __init__(self):
 		self.rospy = rospy
 		'''Parameters'''
-		self.final_vel_topic = self.rospy.get_param("final_vel_topic","/turtle1/cmd_vel")
-		self.force_topic = self.rospy.get_param("force_topic","/force")
-		self.control_rate = self.rospy.get_param("control_rate",100)
-		self.controller_params = {	"m": self.rospy.get_param("mass",8),
-						"b_l": self.rospy.get_param("ldaming_ratio",10),
-						"j": self.rospy.get_param("inertia",5),
-						"b_a": self.rospy.get_param("adamping_ratio",20)
-					}
-		'''Control Params'''
+		self.final_vel_topic = self.rospy.get_param("~final_vel_topic","/RosAria/cmd_vel")
+		self.virtual_wrench_topic = self.rospy.get_param("~virtual_wrench_topic","/virtual_wrench")
+		self.human_wrench_topic = self.rospy.get_param("~human_wrench_topic","/human_wrench")
+		self.shared_wrench_topic = self.rospy.get_param("~shared_wrench_topic","/shared_wrench")
+		self.control_rate = self.rospy.get_param("~control_rate",100)
+		self.control_mode = self.rospy.get_param("~control_mode","user")
+		self.controller_params = {	"m": self.rospy.get_param("~mass",8),
+						"b_l": self.rospy.get_param("~ldaming_ratio",10),
+						"j": self.rospy.get_param("~inertia",5),
+						"b_a": self.rospy.get_param("~adamping_ratio",20)}
 		self.v_prima = self.v_anterior = self.v_actual = 0
 		self.w_prima = self.w_anterior = self.w_actual = 0
 		self.dt = self.last_time = 0
 		self.limite_angular = 0.5
 		self.limite_lineal = 0.5
-		'''Subscribers'''
-		self.sub_force = self.rospy.Subscriber(self.force_topic, Wrench, self.callback_force)
-		'''Publisher'''
-		self.pub_final_vel = self.rospy.Publisher(self.final_vel_topic, Twist, queue_size = 10)
 		'''Node Configuration'''
 		self.rospy.init_node('Control', anonymous = True)
 		self.rate = self.rospy.Rate(self.control_rate)
+		'''Subscribers'''
+		if self.control_mode == "assisted":
+			self.rospy.loginfo("Control mode %s is set", self.control_mode)
+			self.sub_wrench = self.rospy.Subscriber(self.virtual_wrench_topic, Wrench, self.callback_wrench)
+		elif self.control_mode == "shared":
+			self.rospy.loginfo("Control mode %s is set", self.control_mode)
+			self.sub_wrench = self.rospy.Subscriber(self.shared_wrench_topic, Wrench, self.callback_wrench)
+		elif self.control_mode == "user":
+			self.rospy.loginfo("Control mode is not set. Using default %s mode", self.control_mode)
+			self.sub_wrench = self.rospy.Subscriber(self.human_wrench_topic, Wrench, self.callback_wrench)
+		else:
+			self.rospy.logwarn("Invalid %s control mode. Using default %s mode", self.control_mode, "user")
+			self.sub_wrench = self.rospy.Subscriber(self.human_wrench_topic, Wrench, self.callback_wrench)
+		'''Publisher'''
+		self.pub_final_vel = self.rospy.Publisher(self.final_vel_topic, Twist, queue_size = 10)
+		'''Internal Vars'''
 		self.msg_force = Wrench()
 		self.msg_vel = Twist()
 		self.change = False
 		self.main_control()
 
-	def callback_force(self, data):
+	def callback_wrench(self, data):
 		#msg = self.vel_format(data)
 		self.force = data.force.y
 		self.torque = data.torque.z
@@ -78,6 +91,7 @@ class Control():
 		return
 
 	def main_control(self):
+		rospy.loginfo("Admittance Controller OK")
 		while not self.rospy.is_shutdown():
 			if self.change:
 				self.get_response()
@@ -89,6 +103,7 @@ class Control():
 
 if __name__ == '__main__':
 	try:
+		print("Starting Admittance Controller")
 		sw = Control()
 	except rospy.ROSInterruptException:
 		pass
