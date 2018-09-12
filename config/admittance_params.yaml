@@ -13,3 +13,4 @@ control_parameters:
   adamping: 20
 angular_vel_limit: 0.3
 linear_vel_limit: 0.3
+caraca: [-0.3, -0.1, 0.1, 0.3]

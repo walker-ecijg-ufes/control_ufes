@@ -1,0 +1,6 @@
+<launch>
+    <node name="falcon_node_full" pkg="rosfalcon" type="falcon_node_full" output="screen"/>
+    <node name="joy2msg" pkg="rosfalcon" type="joy2msg.py" output="screen">
+      <rosparam file="$(find rosfalcon)/config/joy2msg_params.yaml" command="load"/>
+    </node>
+</launch>

@@ -65,7 +65,7 @@ class Control():
 		self.dt = self.lastTime = 0
 		self.msgForce = Wrench()
 		self.msgVel = Twist()
-		self.changeWrench	 = False
+		self.changeWrench = False
 		self.rate = self.rospy.Rate(self.controlRate)
 		return
 
