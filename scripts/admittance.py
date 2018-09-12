@@ -2,108 +2,145 @@
 import rospy
 from std_msgs.msg import Bool
 from geometry_msgs.msg import Wrench, Twist
+from std_srvs.srv import EmptyResponse, Empty
 from sys import stdin
+from threading import Lock
 
 class Control():
-	def __init__(self):
+	def __init__(self, name):
+		self.name = name
 		self.rospy = rospy
-		'''Parameters'''
-		self.final_vel_topic = self.rospy.get_param("~final_vel_topic","/RosAria/cmd_vel")
-		self.virtual_wrench_topic = self.rospy.get_param("~virtual_wrench_topic","/virtual_wrench")
-		self.human_wrench_topic = self.rospy.get_param("~human_wrench_topic","/human_wrench")
-		self.shared_wrench_topic = self.rospy.get_param("~shared_wrench_topic","/shared_wrench")
-		self.control_rate = self.rospy.get_param("~control_rate",100)
-		self.control_mode = self.rospy.get_param("~control_mode","user")
-		self.controller_params = {	"m": self.rospy.get_param("~mass",8),
-						"b_l": self.rospy.get_param("~ldaming_ratio",10),
-						"j": self.rospy.get_param("~inertia",5),
-						"b_a": self.rospy.get_param("~adamping_ratio",20)}
-		self.v_prima = self.v_anterior = self.v_actual = 0
-		self.w_prima = self.w_anterior = self.w_actual = 0
-		self.dt = self.last_time = 0
-		self.limite_angular = 0.5
-		self.limite_lineal = 0.5
-		'''Node Configuration'''
 		self.rospy.init_node('Control', anonymous = True)
-		self.rate = self.rospy.Rate(self.control_rate)
-		'''Subscribers'''
-		if self.control_mode == "assisted":
-			self.rospy.loginfo("Control mode %s is set", self.control_mode)
-			self.sub_wrench = self.rospy.Subscriber(self.virtual_wrench_topic, Wrench, self.callback_wrench)
-		elif self.control_mode == "shared":
-			self.rospy.loginfo("Control mode %s is set", self.control_mode)
-			self.sub_wrench = self.rospy.Subscriber(self.shared_wrench_topic, Wrench, self.callback_wrench)
-		elif self.control_mode == "user":
-			self.rospy.loginfo("Control mode is not set. Using default %s mode", self.control_mode)
-			self.sub_wrench = self.rospy.Subscriber(self.human_wrench_topic, Wrench, self.callback_wrench)
-		else:
-			self.rospy.logwarn("Invalid %s control mode. Using default %s mode", self.control_mode, "user")
-			self.sub_wrench = self.rospy.Subscriber(self.human_wrench_topic, Wrench, self.callback_wrench)
-		'''Publisher'''
-		self.pub_final_vel = self.rospy.Publisher(self.final_vel_topic, Twist, queue_size = 10)
-		'''Internal Vars'''
-		self.msg_force = Wrench()
-		self.msg_vel = Twist()
-		self.change = False
-		self.main_control()
+		rospy.loginfo("Starting Admittance Controller")
+		self.initParameters()
+		self.initSubscribers()
+		self.initPublishers()
+		self.initServiceClients()
+		self.initVariables()
+		self.mainControl()
 
-	def callback_wrench(self, data):
-		#msg = self.vel_format(data)
-		self.force = data.force.y
-		self.torque = data.torque.z
+	def initParameters(self):
+		self.finalVelTopic = self.rospy.get_param("~final_vel_topic") #,"/RosAria/cmd_vel")
+		self.virtualWrencTopic = self.rospy.get_param("~virtual_wrench_topic") #,"/virtual_wrench")
+		self.humanWrenchTopic = self.rospy.get_param("~human_wrench_topic") #,"/human_wrench")
+		self.sharedWrenchTopic = self.rospy.get_param("~shared_wrench_topic") #,"/shared_wrench")
+		self.updateParamsService = self.name + self.rospy.get_param("~update_params_service")
+		self.controlRate = self.rospy.get_param("~control_parameters/rate") #,100)
+		self.controlMode = self.rospy.get_param("~ccontrol_parameters/mode", "user") #,"user")
+		self.controllerParams = {	"m": self.rospy.get_param("~control_parameters/mass"), #,8),
+									"b_l": self.rospy.get_param("~control_parameters/ldaming"), #,10),
+									"j": self.rospy.get_param("~control_parameters/inertia"), #,5),
+									"b_a": self.rospy.get_param("~control_parameters/adamping")} #,20)}
+		self.wLimit = self.rospy.get_param("~angular_vel_limit") #0.3
+		self.vLimit = self.rospy.get_param("~linear_vel_limit")#0.3
+		self.param_lock = Lock()
+		return
+
+	def initSubscribers(self):
+		if self.controlMode == "assisted":
+			self.rospy.loginfo("Control mode %s is set", self.controlMode)
+			self.subWrench = self.rospy.Subscriber(self.virtualWrencTopic, Wrench, self.callbackWrench)
+		elif self.controlMode == "shared":
+			self.rospy.loginfo("Control mode %s is set", self.controlMode)
+			self.subWrench = self.rospy.Subscriber(self.sharedWrenchTopic, Wrench, self.callbackWrench)
+		elif self.controlMode == "user":
+			self.rospy.loginfo("Control mode %s is set", self.controlMode)
+			self.subWrench = self.rospy.Subscriber(self.humanWrenchTopic, Wrench, self.callbackWrench)
+		else:
+			self.rospy.logwarn("Invalid %s control mode. Using default %s mode", self.controlMode, "user")
+			self.subWrench = self.rospy.Subscriber(self.humanWrenchTopic, Wrench, self.callbackWrench)
+		return
+
+	def initPublishers(self):
+		self.pubFinalvel = self.rospy.Publisher(self.finalVelTopic, Twist, queue_size = 10)
+		return
+
+	def initServiceClients(self):
+		self.rospy.Service(self.updateParamsService, Empty, self.callbackUpdateParams)
+		return
+
+	def initVariables(self):
+		self.vPrima = self.vLast = self.vCurrent = 0
+		self.wPrima = self.wLast = self.wCurrent = 0
+		self.dt = self.lastTime = 0
+		self.msgForce = Wrench()
+		self.msgVel = Twist()
+		self.changeWrench	 = False
+		self.rate = self.rospy.Rate(self.controlRate)
+		return
+
+	def callbackWrench(self, data):
+		self.frc = data.force.y
+		self.trq = data.torque.z
 		time = rospy.get_time()
 		try:
-			self.dt = time - self.last_time
-			self.last_time = time
+			self.dt = time - self.lastTime
+			self.lastTime = time
 		except:
 			self.dt = 0
-			self.last_time = time
-		print(self.dt)
-		self.change = True
+			self.lastTime = time
+		self.changeWrench = True
 		return
 
-	def get_response(self):
-		'''Velocidad Lineal de Admitancia'''
-		if self.force != 0:
-			self.v_actual = (self.force - self.controller_params["m"]*self.v_prima)/self.controller_params["b_l"]
-			self.v_prima = (self.v_actual - self.v_anterior)*self.dt
+	def callbackUpdateParams(self, req):
+		with self.param_lock:
+			self.initParameters()
+			self.rospy.loginfo("Parameter update after request")
+		return EmptyResponse()
+
+	def getAdmittanceResponse(self, input, v_current, v_last, v_prima, m, b, v_limit):
+		if input != 0:
+			v_current = (input -m*v_prima)/b
+			v_prima = (v_current - v_last)*self.dt
 		else:
-			self.v_actual = 0
-		if self.v_actual > self.limite_lineal:
-			self.v_actual = self.limite_lineal
-		elif self.v_actual < -self.limite_lineal:
-			self.v_actual = -self.limite_lineal
-		self.v_anterior = self.v_actual
-		'''Velocidad Angular de Admitancia'''
-		if self.torque != 0:
-			self.w_actual = (self.torque - self.controller_params["j"]*self.v_prima)/self.controller_params["b_a"]
-			self.w_prima = (self.w_actual - self.w_anterior)*self.dt
-		else:
-			self.w_actual = 0
-		if self.w_actual > self.limite_angular:
-			self.w_actual = self.limite_angular
-		elif self.w_actual < -self.limite_angular:
-			self.w_actual = -self.limite_angular
-		self.w_anterior = self.w_actual
-		print('-'*50)
-		print('Force', self.force, 'V lineal', self.v_actual)
-		print('Torque', self.torque, 'V angular', self.w_actual)
+			v_current = 0
+		if v_current > v_limit:
+			v_current = v_limit
+		elif v_current < v_limit:
+			v_current = -v_limit
+		v_last = v_current
+		return v_current, v_last, v_prima
+
+	def vUpdate(self, v):
+		self.vCurrent, self.vLast, self.vPrima = v[0], v[1], v[2]
 		return
 
-	def main_control(self):
+	def wUpdate(self, w):
+		self.wCurrent, self.wLast, self.wPrima = w[0], w[1], w[2]
+		return
+
+	def makeVelMsg(self):
+		self.msgVel = Twist()
+		self.msgVel.linear.x = self.vCurrent
+		self.msgVel.angular.z = self.wCurrent
+		self.pubFinalVel.publish(self.msg_vel)
+
+	def mainControl(self):
 		rospy.loginfo("Admittance Controller OK")
 		while not self.rospy.is_shutdown():
-			if self.change:
-				self.get_response()
-				self.msg_vel.linear.x = self.v_actual
-				self.msg_vel.angular.z = self.w_actual
-				self.pub_final_vel.publish(self.msg_vel)
-				self.change = False
+			if self.changeWrench:
+				self.vUpdate(self.getResponse(
+									self.frc,
+									self.vCurrent,
+									self.vLast,
+									self.vPrima,
+									self.controllerParams["m"],
+									self.controllerParams["b_l"],
+									self.vLimit))
+				self.wUpdate(self.getResponse(
+									self.trq,
+									self.wCurrent,
+									self.wLast,
+									self.wPrima,
+									self.controllerParams["j"],
+									self.controllerParams["b_a"],
+									self.wLimit))
+				self.makeVelMsg()
+				self.changeWrench = False
 			self.rate.sleep()
 
 if __name__ == '__main__':
 	try:
-		print("Starting Admittance Controller")
-		sw = Control()
+		sw = Control('admittance')
 	except rospy.ROSInterruptException:
 		pass
