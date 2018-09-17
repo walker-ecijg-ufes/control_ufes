@@ -16,6 +16,7 @@ class ForceManager():
         self.virtual_wrench_topic = self.rospy.get_param("~virtual_wrench_topic","/virtual_wrench")
         self.human_wrench_topic = self.rospy.get_param("~human_wrench_topic","/human_wrench")
         self.shared_wrench_topic = self.rospy.get_param("~shared_wrench_topic","/shared_wrench")
+        self.falcon_wrench_topic = self.rospy.get_param("~falcon_wrench_topic","/falcon_wrench")
         self.d_sensors = self.rospy.get_param("~frc_sensors_distance", 0.8)
         self.k_virtual = self.rospy.get_param("~k_virtual_torque", 30)
         self.path_rate = self.rospy.get_param("~path_rate",100)
@@ -27,17 +28,19 @@ class ForceManager():
         self.sub_frc_left = message_filters.Subscriber(self.frc_left_topic, WrenchStamped)
         self.sub_frc_right = message_filters.Subscriber(self.frc_right_topic, WrenchStamped)
         self.sub_error_theta = self.rospy.Subscriber(self.error_theta_topic, Float32, self.error_theta_callback)
+        self.sub_falcon_wrench = self.rospy.Subscriber(self.falcon_wrench_topic, Wrench, self.falcon_wrench_callback)
         '''Synchronizer'''
         self.ts_frc = message_filters.TimeSynchronizer([self.sub_frc_left, self.sub_frc_right], 10)
         self.ts_frc.registerCallback(self.frc_callback)
         '''Node Configuration'''
         self.rospy.init_node('ForceManager', anonymous = True)
         self.rate = self.rospy.Rate(self.path_rate)
-        self.msg_human_wrench = self.msg_virtual_wrench = self.msg_shared_wrench = Wrench()
-        self.change1 = self.change2 = False
+        self.virtual_trq = 0
+        self.change1 = self.change2 = self.change3 = False
         self.main_path()
 
     def frc_callback(self, msg_left, msg_right):
+        self.msg_human_wrench = Wrench()
         frc_left = msg_left.wrench.force.y
         frc_right = msg_right.wrench.force.y
         self.human_frc = (frc_left + frc_right)/2
@@ -49,26 +52,34 @@ class ForceManager():
         return
 
     def error_theta_callback(self, msg_theta):
+        self.msg_virtual_wrench = Wrench()
         theta = msg_theta.data
-        f1 = (1 - np.tanh(theta))*self.k_virtual
-        f2 = (1 + np.tanh(theta))*self.k_virtual
+        f1 = (1 + np.tanh(theta))*self.k_virtual
+        f2 = (1 - np.tanh(theta))*self.k_virtual
         self.virtual_trq = (f2 - f1)*self.d_sensors/2
         self.msg_virtual_wrench.torque.z = self.virtual_trq
         self.pub_virtual_wrench.publish(self.msg_virtual_wrench)
         self.change2 = True
         return
 
+    def falcon_wrench_callback(self, msg_falcon):
+        self.falcon_trq = msg_falcon.torque.z
+        self.change3 = True
+        return
+
     def make_shared_wrench(self):
-        self.shared_trq = self.human_trq + self.virtual_trq
+        self.msg_shared_wrench = Wrench()
+        self.shared_trq = self.human_trq + self.virtual_trq + self.falcon_trq
+        self.msg_shared_wrench.force.y = self.human_trq
         self.msg_shared_wrench.torque.z = self.shared_trq
         self.pub_shared_wrench.publish(self.msg_shared_wrench)
-        self.change1 = self.change2 = False
+        self.change1 = self.change2 = self.change3 = False
         return
 
     def main_path(self):
         rospy.loginfo("Force Manager OK")
         while not self.rospy.is_shutdown():
-            if self.change1 and self.change2:
+            if self.change1 and self.change2 and self.change3:
                 self.make_shared_wrench()
             self.rate.sleep()
 

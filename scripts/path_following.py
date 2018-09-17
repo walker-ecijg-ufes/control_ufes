@@ -63,7 +63,7 @@ class PathFollow():
 		x_point = self.V_ref*np.cos(self.theta_ref)+ self.lx*np.tanh((self.kx/self.lx)*xtilde)
 		theta_desired = np.arctan2(y_point,x_point)
 		self.theta_desired.data = theta_desired
-		error_theta = theta_desired - self.theta_bot
+		error_theta = self.theta_bot - theta_desired
 		error_theta = np.mod((error_theta + np.pi), 2*np.pi) - np.pi
 		self.error_theta.data = error_theta
 		self.pub_theta_desired.publish(self.theta_desired)

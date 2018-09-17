@@ -3,14 +3,15 @@ final_vel_topic: /RosAria/cmd_vel
 virtual_wrench_topic: /virtual_wrench
 human_wrench_topic: /human_wrench
 shared_wrench_topic: /shared_wrench
+falcon_wrench_topic: /falcon_wrench
 update_params_service: /update_parameters
 control_parameters:
   rate: 100
-  mode: user
+  mode: assisted
   mass: 8
   ldaming: 10
   inertia: 5
   adamping: 20
-angular_vel_limit: 0.3
+angular_vel_limit: 0.3 
 linear_vel_limit: 0.3
 caraca: [-0.3, -0.1, 0.1, 0.3]
