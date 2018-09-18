@@ -34,9 +34,9 @@ class HapticTeleop():
 		self.controlRate = self.rospy.get_param("~control_parameters/rate", 100)
 		self.hapticMode = self.rospy.get_param("~control_parameters/mode", "LED") # LED - force
 		self.controllerParams = {"k": self.rospy.get_param("~control_parameters/k",1),
-								 "d": self.rospy.get_param("~control_parameters/d",0.1)}
-		self.kVirtual = self.rospy.get_param("~k_virtual", 10)
-		self.kSlope = self.rospy.get_param("~k_slope",100)
+								 "d": self.rospy.get_param("~control_parameters/d",0.8)}
+		self.kVirtual = self.rospy.get_param("~k_virtual", 10) # proportional incremental gain
+		self.kSlope = self.rospy.get_param("~k_slope", 50) # less k value, increases trq value
 		self.param_lock = Lock()
 		return
 
@@ -59,10 +59,11 @@ class HapticTeleop():
 
 	def initVariables(self):
 		self.rate = self.rospy.Rate(self.controlRate)
-		self.changeError = self.changePos = False
+		self.changeError = self.changePos = self.changeJoy = False
 		self.xMax = 50
-		self.angleMax = 120*np.pi/180
-		self.xThreshold = 5
+		self.frcMax = 1
+		self.angleMax = 60*np.pi/180
+		self.xThreshold = 10*np.pi/180
 		self.posX = 0
 		self.button = 0
 		self.pressed = True
@@ -85,16 +86,18 @@ class HapticTeleop():
 		return
 
 	def callbackFalconJoystick(self, msg):
+		self.msgWrench = Wrench()
 		self.button = msg.buttons[0]
 		if self.button == 4 and not self.pressed:
-			msgWrench = Wrench()
-			msgWrench.torque.z = self.kVirtual*np.tanh(self.posX/self.kSlope)
-			print(self.posX, msgWrench.torque.z)
-			self.pubFalconWrench.publish(msgWrench)
+			self.msgWrench.torque.z = 1*self.kVirtual*np.tanh(self.posX/self.kSlope)
 			self.pressed = True
+			if self.hapticMode == "force":
+				self.makeMsgForce()
 		else:
 			if self.pressed:
 				self.pressed = False
+				self.msgWrench.torque.z = 0
+		self.changeJoy = True
 		return
 
 	def callbackUpdateParams(self, req):
@@ -111,19 +114,23 @@ class HapticTeleop():
 
 	def makeMsgLED(self):
 		self.msgLED = String()
-		if self.posX >= self.xThreshold or self.posX <= -self.xThreshold:
+		if self.thetaError >= self.xThreshold or self.thetaError <= -self.xThreshold:
 			self.msgLED.data = "red"
 		else:
-			self.msgLED.data = "blue"
+			self.msgLED.data = "blue" #blue
 		self.pubSetLED.publish(self.msgLED)
 		return
 
+	def makeMsgWrench(self):
+		self.pubFalconWrench.publish(self.msgWrench)
+		pass
+
 	def makeMsgForce(self):
 		msg = falconForces()
-		self.frc = np.sign(self.posX)*self.controllerParams["k"]*np.exp(np.power((-self.posX/self.controllerParams["d"]), 2))
+		self.frc = self.frcMax - self.controllerParams["k"]*np.exp(np.power(-(self.thetaError/self.controllerParams["d"]), 2))
 		print(self.frc)
 		msg.X = self.frc
-		self.pubFalconForce.publish(msg)
+		#self.pubFalconForce.publish(msg)
 		return
 
 	def mainControl(self):
@@ -134,8 +141,13 @@ class HapticTeleop():
 				if self.changePos:
 					if self.hapticMode == "LED":
 						self.makeMsgLED()
+						if self.changeJoy:
+							self.makeMsgWrench()
+							self.changeJoy = False
 					elif self.hapticMode == "force":
-						self.makeMsgForce()
+						if self.changeJoy:
+							self.makeMsgWrench()
+							self.changeJoy = False
 					else:
 						self.rospy.loginfo("Invalid haptic mode")
 			self.rate.sleep()

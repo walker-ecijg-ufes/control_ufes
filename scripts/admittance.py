@@ -29,7 +29,7 @@ class Control():
 		self.falconWrenchTopic = self.rospy.get_param("~falcon_wrench_topic") #,"/shared_wrench")
 		self.updateParamsService = self.name + self.rospy.get_param("~update_params_service")
 		self.controlRate = self.rospy.get_param("~control_parameters/rate") #,100)
-		self.controlMode = self.rospy.get_param("~ccontrol_parameters/mode", "assisted") #,"user")
+		self.controlMode = self.rospy.get_param("~ccontrol_parameters/mode", "assisted_teleop") #,"user")
 		self.controllerParams = {	"m": self.rospy.get_param("~control_parameters/mass"), #,8),
 									"b_l": self.rospy.get_param("~control_parameters/ldaming"), #,10),
 									"j": self.rospy.get_param("~control_parameters/inertia"), #,5),
@@ -49,8 +49,8 @@ class Control():
 			self.subWrench = self.rospy.Subscriber(self.sharedWrenchTopic, Wrench, self.callbackWrench)
 		elif self.controlMode == "assisted_teleop":
 			self.rospy.loginfo("Control mode %s is set", self.controlMode)
-			self.subTrq = self.rospy.Subscriber(self.falconWrenchTopic, self.callbackTrq)
-			self.subFrc = self.rospy.Subscriber(self.humanWrenchTopic, self.callbackFrc)
+			self.subTrq = self.rospy.Subscriber(self.falconWrenchTopic, Wrench, self.callbackTrq)
+			self.subFrc = self.rospy.Subscriber(self.humanWrenchTopic, Wrench, self.callbackFrc)
 		elif self.controlMode == "user":
 			self.rospy.loginfo("Control mode %s is set", self.controlMode)
 			self.subWrench = self.rospy.Subscriber(self.humanWrenchTopic, Wrench, self.callbackWrench)
@@ -113,20 +113,20 @@ class Control():
 		return EmptyResponse()
 
 	def getAdmittanceResponse(self, input, v_current, v_last, v_prima, m, b, v_limit):
+		print('vcurrent', v_current, 'vlast', v_last, 'vprima', v_prima)
 		if input != 0:
-			v_current = (input -m*v_prima)/b
-			v_prima = (v_current - v_last)#*self.dt
+			v_current = (input - m*v_prima)/b
 		else:
 			v_current = 0
 		if v_current > v_limit:
 			v_current = v_limit
 		elif v_current < -v_limit:
 			v_current = -v_limit
+		v_prima = (v_current - v_last)*self.dt
 		v_last = v_current
 		return v_current, v_last, v_prima
 
 	def vUpdate(self, v):
-		print(v)
 		self.vCurrent, self.vLast, self.vPrima = v[0], v[1], v[2]
 		return
 
