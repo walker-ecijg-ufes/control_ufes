@@ -70,7 +70,7 @@ class ForceManager():
     def make_shared_wrench(self):
         self.msg_shared_wrench = Wrench()
         self.shared_trq = self.human_trq + self.virtual_trq + self.falcon_trq
-        self.msg_shared_wrench.force.y = self.human_trq
+        self.msg_shared_wrench.force.y = self.human_frc
         self.msg_shared_wrench.torque.z = self.shared_trq
         self.pub_shared_wrench.publish(self.msg_shared_wrench)
         self.change1 = self.change2 = self.change3 = False

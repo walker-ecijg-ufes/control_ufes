@@ -1,5 +1,6 @@
 #!/usr/bin/python
 import rospy
+import numpy as np
 import message_filters
 from std_msgs.msg import Bool
 from geometry_msgs.msg import Wrench, Twist
@@ -41,19 +42,15 @@ class Control():
 	def initSubscribers(self):
 		if self.controlMode == "assisted":
 			self.rospy.loginfo("Control mode %s is set", self.controlMode)
-			self.subTrq = message_filters.Subscriber(self.virtualWrenchTopic, Wrench)
-			self.subFrc = message_filters.Subscriber(self.humanWrenchTopic, Wrench)
-			self.tsWrench = message_filters.TimeSynchronizer([self.subFrc, self.subTrq], 10)
-			self.tsWrench.registerCallback(self.callbackAssited)
+			self.subTrq = self.rospy.Subscriber(self.virtualWrenchTopic, Wrench, self.callbackTrq)
+			self.subFrc = self.rospy.Subscriber(self.humanWrenchTopic, Wrench, self.callbackFrc)
 		elif self.controlMode == "shared":
 			self.rospy.loginfo("Control mode %s is set", self.controlMode)
 			self.subWrench = self.rospy.Subscriber(self.sharedWrenchTopic, Wrench, self.callbackWrench)
 		elif self.controlMode == "assisted_teleop":
 			self.rospy.loginfo("Control mode %s is set", self.controlMode)
-			self.subTrq = message_filters.Subscriber(self.falconWrenchTopic, Wrench)
-			self.subFrc = message_filters.Subscriber(self.humanWrenchTopic, Wrench)
-			self.tsWrench = message_filters.TimeSynchronizer([self.subFrc, self.subTrq], 10)
-			self.tsWrench.registerCallback(self.callbackAssited)
+			self.subTrq = self.rospy.Subscriber(self.falconWrenchTopic, self.callbackTrq)
+			self.subFrc = self.rospy.Subscriber(self.humanWrenchTopic, self.callbackFrc)
 		elif self.controlMode == "user":
 			self.rospy.loginfo("Control mode %s is set", self.controlMode)
 			self.subWrench = self.rospy.Subscriber(self.humanWrenchTopic, Wrench, self.callbackWrench)
@@ -76,19 +73,11 @@ class Control():
 		self.dt = self.lastTime = 0
 		self.msgForce = Wrench()
 		self.msgVel = Twist()
-		self.changeWrench = False
+		self.changeWrench = self.changeTrq = self.changeFrc = False
 		self.rate = self.rospy.Rate(self.controlRate)
 		return
 
-	def callbackAssited(self, dataFrc, dataTrq):
-		self.frc = dataFrc.force.y
-		self.trq = dataTrq.torque.z
-		self.changeWrench = True
-		return
-
-	def callbackWrench(self, data):
-		self.frc = data.force.y
-		self.trq = data.torque.z
+	def getTime(self):
 		time = rospy.get_time()
 		try:
 			self.dt = time - self.lastTime
@@ -96,6 +85,24 @@ class Control():
 		except:
 			self.dt = 0
 			self.lastTime = time
+		return
+
+	def callbackTrq(self, dataTrq):
+		self.trq = dataTrq.torque.z
+		self.getTime()
+		self.changeTrq = True
+		return
+
+	def callbackFrc(self, dataFrc):
+		self.frc = dataFrc.force.y
+		self.getTime()
+		self.changeFrc = True
+		return
+
+	def callbackWrench(self, data):
+		self.frc = data.force.y
+		self.trq = data.torque.z
+		self.getTime()
 		self.changeWrench = True
 		return
 
@@ -119,6 +126,7 @@ class Control():
 		return v_current, v_last, v_prima
 
 	def vUpdate(self, v):
+		print(v)
 		self.vCurrent, self.vLast, self.vPrima = v[0], v[1], v[2]
 		return
 
@@ -136,7 +144,7 @@ class Control():
 	def mainControl(self):
 		rospy.loginfo("Admittance Controller OK")
 		while not self.rospy.is_shutdown():
-			if self.changeWrench:
+			if self.changeWrench or (self.changeFrc and self.changeTrq):
 				self.vUpdate(self.getAdmittanceResponse(
 									self.frc,
 									self.vCurrent,
@@ -157,7 +165,7 @@ class Control():
 				#print('Force', self.frc, 'V lineal', self.vCurrent)
 				#print('Torque', self.trq, 'V angular', self.wCurrent)
 				self.makeVelMsg()
-				self.changeWrench = False
+				self.changeWrench = self.changeFrc = self.changeTrq = False
 			self.rate.sleep()
 
 if __name__ == '__main__':
