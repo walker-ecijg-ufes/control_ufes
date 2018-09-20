@@ -15,7 +15,7 @@ class HapticTeleop():
 		self.name = name
 		self.rospy = rospy
 		self.rospy.init_node('HapticTeleop', anonymous = True)
-		rospy.loginfo("Starting HapticTeleop Controller")
+		self.rospy.loginfo("Starting HapticTeleop Controller")
 		self.initParameters()
 		self.initSubscribers()
 		self.initPublishers()

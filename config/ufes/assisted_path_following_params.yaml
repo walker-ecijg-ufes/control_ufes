@@ -10,3 +10,4 @@ Ky: 0.7
 Kx: 0.7
 theta_desired_topic: /theta_desired
 path_rate: 100
+update_params_service: /update_parameters

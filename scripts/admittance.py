@@ -13,7 +13,7 @@ class Control():
 		self.name = name
 		self.rospy = rospy
 		self.rospy.init_node('Control', anonymous = True)
-		rospy.loginfo("Starting Admittance Controller")
+		self.rospy.loginfo("[%s] Starting Admittance Controller", self.name)
 		self.initParameters()
 		self.initSubscribers()
 		self.initPublishers()
@@ -27,7 +27,7 @@ class Control():
 		self.humanWrenchTopic = self.rospy.get_param("~human_wrench_topic","/human_wrench")
 		self.sharedWrenchTopic = self.rospy.get_param("~shared_wrench_topic","/shared_wrench")
 		self.falconWrenchTopic = self.rospy.get_param("~falcon_wrench_topic","/falcon_wrench")
-		self.updateParamsService = self.name + self.rospy.get_param("~update_params_service", "/admittance/update_parameters")
+		self.updateParamsService = self.name + self.rospy.get_param("~update_params_service", "/update_parameters")
 		self.controlRate = self.rospy.get_param("~control_parameters/rate",100)
 		self.controlMode = self.rospy.get_param("~control_parameters/mode","user")
 		self.controllerParams = {	"m": self.rospy.get_param("~control_parameters/mass",8),
@@ -41,21 +41,21 @@ class Control():
 
 	def initSubscribers(self):
 		if self.controlMode == "assisted":
-			self.rospy.loginfo("Control mode %s is set", self.controlMode)
+			self.rospy.loginfo("[%s] Control mode '%s' is set", self.name, self.controlMode)
 			self.subTrq = self.rospy.Subscriber(self.virtualWrenchTopic, Wrench, self.callbackTrq)
 			self.subFrc = self.rospy.Subscriber(self.humanWrenchTopic, Wrench, self.callbackFrc)
 		elif self.controlMode == "shared":
-			self.rospy.loginfo("Control mode %s is set", self.controlMode)
+			self.rospy.loginfo("[%s] Control mode '%s' is set", self.name, self.controlMode)
 			self.subWrench = self.rospy.Subscriber(self.sharedWrenchTopic, Wrench, self.callbackWrench)
 		elif self.controlMode == "assisted_teleop":
-			self.rospy.loginfo("Control mode %s is set", self.controlMode)
+			self.rospy.loginfo("[%s] Control mode '%s' is set", self.name, self.controlMode)
 			self.subTrq = self.rospy.Subscriber(self.falconWrenchTopic, Wrench, self.callbackTrq)
 			self.subFrc = self.rospy.Subscriber(self.humanWrenchTopic, Wrench, self.callbackFrc)
 		elif self.controlMode == "user":
-			self.rospy.loginfo("Control mode %s is set", self.controlMode)
+			self.rospy.loginfo("[%s] Control mode '%s' is set", self.name, self.controlMode)
 			self.subWrench = self.rospy.Subscriber(self.humanWrenchTopic, Wrench, self.callbackWrench)
 		else:
-			self.rospy.logwarn("Invalid %s control mode. Using default %s mode", self.controlMode, "user")
+			self.rospy.logwarn("[%s] Invalid '%s' control mode. Using default %s mode", self.name, self.controlMode, "user")
 			self.subWrench = self.rospy.Subscriber(self.humanWrenchTopic, Wrench, self.callbackWrench)
 		return
 
@@ -109,7 +109,7 @@ class Control():
 	def callbackUpdateParams(self, req):
 		with self.param_lock:
 			self.initParameters()
-			self.rospy.loginfo("Parameter update after request")
+			self.rospy.loginfo("[%s] Parameter update after request", self.name)
 		return EmptyResponse()
 
 	def getAdmittanceResponse(self, input, v_current, v_last, v_prima, m, b, v_limit):
@@ -140,7 +140,7 @@ class Control():
 		self.pubFinalVel.publish(self.msgVel)
 
 	def mainControl(self):
-		rospy.loginfo("Admittance Controller OK")
+		self.rospy.loginfo("[%s] Admittance Controller OK", self.name)
 		while not self.rospy.is_shutdown():
 			if self.changeWrench or (self.changeFrc and self.changeTrq):
 				self.vUpdate(self.getAdmittanceResponse(

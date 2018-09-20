@@ -13,13 +13,13 @@ class ForceManager():
         self.name = name
         self.rospy = rospy
         self.rospy.init_node('ForceManager', anonymous = True)
-        rospy.loginfo("Starting ForceManager")
+        self.rospy.loginfo("[%s] Starting ForceManager", self.name)
         self.initParameters()
-		self.initSubscribers()
-		self.initPublishers()
-		self.initServiceClients()
-		self.initVariables()
-		self.mainControl()
+        self.initSubscribers()
+        self.initPublishers
+        self.initServiceClients()
+        self.initVariables()
+        self.mainManager()
 
     def initParameters(self):
         self.frc_left_topic = self.rospy.get_param("~frc_left_topic","/frc_left")
@@ -59,12 +59,12 @@ class ForceManager():
         self.rate = self.rospy.Rate(self.manager_rate)
         self.virtual_trq = 0
         self.change1 = self.change2 = self.change3 = False
-        self.main_manager()
+        return
 
     def callbackUpdateParams(self, req):
 		with self.param_lock:
 			self.initParameters()
-			self.rospy.loginfo("Parameter update after request")
+			self.rospy.loginfo("[%s] Parameter update after request", self.name)
 		return EmptyResponse()
 
     def frc_callback(self, msg_left, msg_right):
@@ -104,8 +104,8 @@ class ForceManager():
         self.change1 = self.change2 = self.change3 = False
         return
 
-    def main_manager(self):
-        rospy.loginfo("Force Manager OK")
+    def mainManager(self):
+        self.rospy.loginfo("[%s] Force Manager OK", self.name)
         while not self.rospy.is_shutdown():
             if self.change1 and self.change2 and self.change3:
                 self.make_shared_wrench()
@@ -113,6 +113,6 @@ class ForceManager():
 
 if __name__ == '__main__':
 	try:
-		sw = ForceManager()
+		sw = ForceManager('force_manager')
 	except rospy.ROSInterruptException:
 		pass

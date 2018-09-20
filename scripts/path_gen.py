@@ -9,26 +9,49 @@ from std_msgs.msg import Float32
 from geometry_msgs.msg import Pose
 from geometry_msgs.msg import PoseStamped
 from geometry_msgs.msg import Point
+from std_srvs.srv import EmptyResponse, Empty
+from threading import Lock
 
 class PathGen():
-	def __init__(self):
+	def __init__(self, name):
+		self.name = name
 		self.rospy = rospy
-		'''Parameters'''
+		self.rospy.init_node('PathGeneration', anonymous = True)
+		self.rospy.loginfo("[%s] Starting Path Generator", self.name)
+		self.initParameters()
+		self.initSubscribers()
+		self.initPublishers()
+		self.initServiceClients()
+		self.initVariables()
+		self.main_path()
+
+	def initParameters(self):
 		self.path_topic = self.rospy.get_param("~path_topic","/path")
 		self.odom_topic = self.rospy.get_param("~odom_topic","/RosAria/pose")
 		self.error_pos_topic = self.rospy.get_param("~error_pos_topic","/error_pos")
 		self.theta_ref_topic = self.rospy.get_param("~theta_ref_topic","/theta_ref")
 		self.route = self.rospy.get_param("~route","soft_turn_curve")
+		self.updateParamsService = self.name + self.rospy.get_param("~update_params_service", "/update_parameters")
 		self.path_rate = self.rospy.get_param("~path_rate", 10)
 		self.frame_id = self.rospy.get_param("~frame_id","odom")
-		'''Publisher'''
+		self.param_lock = Lock()
+		return
+
+	def initSubscribers(self):
+		self.sub_odom = self.rospy.Subscriber(self.odom_topic, Odometry, self.odom_callback)
+		return
+
+	def initPublishers(self):
 		self.pub_path = self.rospy.Publisher(self.path_topic, Path, queue_size = 5)
 		self.pub_error_pos = self.rospy.Publisher(self.error_pos_topic, Point, queue_size = 5)
 		self.pub_theta_ref = self.rospy.Publisher(self.theta_ref_topic, Float32, queue_size = 5)
-		'''Subscriber'''
-		self.sub_odom = self.rospy.Subscriber(self.odom_topic, Odometry, self.odom_callback)
-		'''Node Configuration'''
-		self.rospy.init_node('PathGeneration', anonymous = True)
+		return
+
+	def initServiceClients(self):
+		self.rospy.Service(self.updateParamsService, Empty, self.callbackUpdateParams)
+		return
+
+	def initVariables(self):
 		self.rate = self.rospy.Rate(self.path_rate)
 		self.msg_path = Path()
 		self.aux_header = Header()
@@ -37,8 +60,13 @@ class PathGen():
 		self.theta_ref = Float32()
 		self.seq = self.x_bot = self.y_bot = 0
 		self.change = False
-		print(self.path_rate)
-		self.main_path()
+		return
+
+	def callbackUpdateParams(self, req):
+		with self.param_lock:
+			self.initParameters()
+			self.rospy.loginfo("[%s] Parameter update after request", self.name)
+		return EmptyResponse()
 
 	def odom_callback(self, msg):
 		self.x_bot = msg.pose.pose.position.x
@@ -116,7 +144,7 @@ class PathGen():
 		self.pub_theta_ref.publish(self.theta_ref)
 
 	def main_path(self):
-		rospy.loginfo("Path OK")
+		self.rospy.loginfo("[%s] PathGeneration OK", self.name)
 		exit = False
 		while not self.rospy.is_shutdown() and not(exit):
 			if self.route == 'straight':
@@ -142,7 +170,6 @@ class PathGen():
 
 if __name__ == '__main__':
 	try:
-		print("Starting Path Generator")
-		sw = PathGen()
+		sw = PathGen('path_gen')
 	except rospy.ROSInterruptException:
 		pass

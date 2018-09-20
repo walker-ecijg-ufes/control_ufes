@@ -7,3 +7,4 @@ human_wrench_topic: /human_wrench"
 frc_sensors_distance: 0.8
 k_virtual_torque: 30
 manager_rate:  100
+update_params_service: /update_parameters
