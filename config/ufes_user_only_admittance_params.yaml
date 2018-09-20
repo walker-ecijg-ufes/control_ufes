@@ -1,9 +1,6 @@
-#Parameters for Admittance Controller
+#Parameters for Admittance Controller in user mode
 final_vel_topic: /cmd_vel
-virtual_wrench_topic: /virtual_wrench
 human_wrench_topic: /human_wrench
-shared_wrench_topic: /shared_wrench
-falcon_wrench_topic: /falcon_wrench
 update_params_service: /update_parameters
 control_parameters:
   rate: 100
@@ -12,5 +9,5 @@ control_parameters:
   ldaming: 10
   inertia: 5
   adamping: 20
-angular_vel_limit: 1 
+angular_vel_limit: 0.5 
 linear_vel_limit: 0.3

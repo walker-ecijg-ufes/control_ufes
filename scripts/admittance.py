@@ -22,20 +22,20 @@ class Control():
 		self.mainControl()
 
 	def initParameters(self):
-		self.finalVelTopic = self.rospy.get_param("~final_vel_topic") #,"/RosAria/cmd_vel")
-		self.virtualWrenchTopic = self.rospy.get_param("~virtual_wrench_topic") #,"/virtual_wrench")
-		self.humanWrenchTopic = self.rospy.get_param("~human_wrench_topic") #,"/human_wrench")
-		self.sharedWrenchTopic = self.rospy.get_param("~shared_wrench_topic") #,"/shared_wrench")
-		self.falconWrenchTopic = self.rospy.get_param("~falcon_wrench_topic") #,"/shared_wrench")
-		self.updateParamsService = self.name + self.rospy.get_param("~update_params_service")
-		self.controlRate = self.rospy.get_param("~control_parameters/rate") #,100)
-		self.controlMode = self.rospy.get_param("~ccontrol_parameters/mode", "assisted_teleop") #,"user")
-		self.controllerParams = {	"m": self.rospy.get_param("~control_parameters/mass"), #,8),
-									"b_l": self.rospy.get_param("~control_parameters/ldaming"), #,10),
-									"j": self.rospy.get_param("~control_parameters/inertia"), #,5),
-									"b_a": self.rospy.get_param("~control_parameters/adamping")} #,20)}
-		self.wLimit = self.rospy.get_param("~angular_vel_limit") #0.3
-		self.vLimit = self.rospy.get_param("~linear_vel_limit")#0.3
+		self.finalVelTopic = self.rospy.get_param("~final_vel_topic","cmd_vel")
+		self.virtualWrenchTopic = self.rospy.get_param("~virtual_wrench_topic","/virtual_wrench")
+		self.humanWrenchTopic = self.rospy.get_param("~human_wrench_topic","/human_wrench")
+		self.sharedWrenchTopic = self.rospy.get_param("~shared_wrench_topic","/shared_wrench")
+		self.falconWrenchTopic = self.rospy.get_param("~falcon_wrench_topic","/falcon_wrench")
+		self.updateParamsService = self.name + self.rospy.get_param("~update_params_service", "/admittance/update_parameters")
+		self.controlRate = self.rospy.get_param("~control_parameters/rate",100)
+		self.controlMode = self.rospy.get_param("~control_parameters/mode","user")
+		self.controllerParams = {	"m": self.rospy.get_param("~control_parameters/mass",8),
+									"b_l": self.rospy.get_param("~control_parameters/ldaming",10),
+									"j": self.rospy.get_param("~control_parameters/inertia",5),
+									"b_a": self.rospy.get_param("~control_parameters/adamping",20)}
+		self.wLimit = self.rospy.get_param("~angular_vel_limit",0.3)
+		self.vLimit = self.rospy.get_param("~linear_vel_limit",0.3)
 		self.param_lock = Lock()
 		return
 
@@ -113,7 +113,6 @@ class Control():
 		return EmptyResponse()
 
 	def getAdmittanceResponse(self, input, v_current, v_last, v_prima, m, b, v_limit):
-		print('vcurrent', v_current, 'vlast', v_last, 'vprima', v_prima)
 		if input != 0:
 			v_current = (input - m*v_prima)/b
 		else:
@@ -138,7 +137,6 @@ class Control():
 		self.msgVel = Twist()
 		self.msgVel.linear.x = self.vCurrent
 		self.msgVel.angular.z = self.wCurrent
-		print(self.vCurrent, self.wCurrent)
 		self.pubFinalVel.publish(self.msgVel)
 
 	def mainControl(self):
@@ -161,9 +159,6 @@ class Control():
 									self.controllerParams["j"],
 									self.controllerParams["b_a"],
 									self.wLimit))
-				#print('-'*50)
-				#print('Force', self.frc, 'V lineal', self.vCurrent)
-				#print('Torque', self.trq, 'V angular', self.wCurrent)
 				self.makeVelMsg()
 				self.changeWrench = self.changeFrc = self.changeTrq = False
 			self.rate.sleep()

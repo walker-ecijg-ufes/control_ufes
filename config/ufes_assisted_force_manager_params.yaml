@@ -1,0 +1,9 @@
+#Parameters for ForceManager Controller in assisted mode
+frc_left_topic: /frc_left"
+frc_right_topic: /frc_right"
+error_theta_topic: /error_theta"
+virtual_wrench_topic: /virtual_wrench"
+human_wrench_topic: /human_wrench"
+frc_sensors_distance: 0.8
+k_virtual_torque: 30
+manager_rate:  100

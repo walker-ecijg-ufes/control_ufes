@@ -1,0 +1,17 @@
+#Parameters for Haptic Interaction in FREE mode
+error_theta_topic: /error_theta
+set_point_topic: /falcon/setpoint
+set_LED_topic: /falcon/LED
+falcon_pos_topic: /falcon/pos
+falcon_force_topic: /falcon/force
+falcon_joystick_topic: /falcon/joystick
+falcon_wrench_topic: /falcon_wrench
+update_params_service: /update_parameters
+haptic_parameters:
+  rate: 100
+  mode: free
+  frcGain: 6 #Maximum haptic force allowed
+  d: 0.3 #Gaussian width
+falcon_wrench:
+  kGain: 10
+  kSlope: 50

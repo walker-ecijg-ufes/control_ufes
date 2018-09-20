@@ -19,7 +19,7 @@ class PathGen():
 		self.error_pos_topic = self.rospy.get_param("~error_pos_topic","/error_pos")
 		self.theta_ref_topic = self.rospy.get_param("~theta_ref_topic","/theta_ref")
 		self.route = self.rospy.get_param("~route","soft_turn_curve")
-		self.path_rate = self.rospy.get_param("~path_rate",10)
+		self.path_rate = self.rospy.get_param("~path_rate", 10)
 		self.frame_id = self.rospy.get_param("~frame_id","odom")
 		'''Publisher'''
 		self.pub_path = self.rospy.Publisher(self.path_topic, Path, queue_size = 5)
@@ -37,6 +37,7 @@ class PathGen():
 		self.theta_ref = Float32()
 		self.seq = self.x_bot = self.y_bot = 0
 		self.change = False
+		print(self.path_rate)
 		self.main_path()
 
 	def odom_callback(self, msg):

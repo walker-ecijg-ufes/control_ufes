@@ -1,0 +1,8 @@
+#Parameters for PathGen Controller in assisted mode
+path_topic: /path
+odom_topic: /odom
+error_pos_topic: /error_pos
+theta_ref_topic: /theta_ref
+route: soft_turn_curve
+path_rate: 10
+frame_id: odom

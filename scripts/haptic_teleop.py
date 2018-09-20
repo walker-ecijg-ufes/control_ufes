@@ -1,8 +1,9 @@
 #!/usr/bin/python
 import rospy
 import numpy as np
-from std_msgs.msg import Bool, String, Float32
-from geometry_msgs.msg import Wrench, Twist, Point
+import time
+from std_msgs.msg import String, Float32
+from geometry_msgs.msg import Wrench, Twist
 from sensor_msgs.msg import Joy
 from std_srvs.srv import EmptyResponse, Empty
 from rosfalcon.msg import falconSetPoint, falconPos, falconForces
@@ -31,12 +32,12 @@ class HapticTeleop():
 		self.falconJoystickTopic = self.rospy.get_param("~falcon_joystick_topic", "/falcon/joystick")
 		self.falconWrenchTopic = self.rospy.get_param("~falcon_wrench_topic", "/falcon_wrench")
 		self.updateParamsService = self.name + self.rospy.get_param("~update_params_service","update_params")
-		self.controlRate = self.rospy.get_param("~control_parameters/rate", 100)
-		self.hapticMode = self.rospy.get_param("~control_parameters/mode", "force") # LED - force
-		self.controllerParams = {"k": self.rospy.get_param("~control_parameters/k",1),
-								 "d": self.rospy.get_param("~control_parameters/d",0.8)}
-		self.kVirtual = self.rospy.get_param("~k_virtual", 10) # proportional incremental gain
-		self.kSlope = self.rospy.get_param("~k_slope", 50) # less k value, increases trq value
+		self.hapticRate = self.rospy.get_param("~haptic_parameters/rate", 100)
+		self.hapticMode = self.rospy.get_param("~haptic_parameters/mode", "free") # free - led - force
+		self.hapticParams = {"frcGain": self.rospy.get_param("~haptic_parameters/frcGain",6),
+							 "d": self.rospy.get_param("~haptic_parameters/d",0.3)}
+		self.falconWrenchParams = {"kGain": self.rospy.get_param("~falcon_wrench/kGain", 10),	#Directly Proportional Gain
+							  "kSlope": self.rospy.get_param("~falcon_wrench/kSlope",50)}	#Inversely Proportional Gain
 		self.param_lock = Lock()
 		return
 
@@ -58,18 +59,16 @@ class HapticTeleop():
 		return
 
 	def initVariables(self):
-		self.rate = self.rospy.Rate(self.controlRate)
+		self.rate = self.rospy.Rate(self.hapticRate)
 		self.changeError = self.changePos = self.changeJoy = False
 		self.xMax = 50
-		self.frcMax = 6
 		self.angleMax = 90*np.pi/180
 		self.xThreshold = 10*np.pi/180
 		self.posX = 0
-		self.posXlast = 0
-		self.posXprima = 0
 		self.frc = 0
 		self.button = 0
-		self.pressed = True
+		self.invalidCount = 0
+		self.exitFlag = False
 		return
 
 	def callbackErrorTheta(self, msg):
@@ -85,32 +84,30 @@ class HapticTeleop():
 
 	def callbackFalconPos(self, msg):
 		self.posX = msg.X
-		self.posXprima = self.posX - self.posXlast
-		self.posXlast = self.posX
 		self.changePos = True
 		return
 
 	def callbackFalconJoystick(self, msg):
 		self.msgWrench = Wrench()
 		self.button = msg.buttons[0]
-		if self.button == 4 and not self.pressed:
-			if self.hapticMode == "LED":
-				self.msgWrench.torque.z = -1*self.kVirtual*np.tanh(self.posX/self.kSlope) #Contrarrestar es sin menos
+		if self.button == 4:
+			#Counter torque is achieved without minus sign
+			if self.hapticMode == "free" or self.hapticMode == "force":
+				self.msgWrench.torque.z = -1*self.falconWrenchParams["kGain"]*np.tanh(self.posX/self.falconWrenchParams["kSlope"])
+			elif self.hapticMode == "LED":
+				self.msgWrench.torque.z = 1*self.falconWrenchParams["kGain"]*np.tanh(self.posX/self.falconWrenchParams["kSlope"])
 			else:
-				#self.msgWrench.torque.z = np.sign(self.posX)*self.kVirtual*np.tanh(self.frc*self.posX) #Contrarrestar es con menos
-				self.msgWrench.torque.z = -1*self.kVirtual*np.tanh(self.posX/self.kSlope)
-			self.pressed = True
+				self.msgWrench.torque.z = 0
 			self.makeMsgForce()
 		else:
-			if self.pressed:
-				self.pressed = False
-				self.msgWrench.torque.z = 0
+			self.msgWrench.torque.z = 0
 		self.changeJoy = True
 		return
 
 	def callbackUpdateParams(self, req):
 		with self.param_lock:
 			self.initParameters()
+			self.checkMode()
 			self.rospy.loginfo("Parameter update after request")
 		return EmptyResponse()
 
@@ -121,46 +118,69 @@ class HapticTeleop():
 		return
 
 	def makeMsgLED(self):
-		self.msgLED = String()
-		if self.thetaError >= self.xThreshold or self.thetaError <= -self.xThreshold:
-			self.msgLED.data = "red"
+		msgLED = String()
+		if self.hapticMode == "free":
+			msgLED.data = "green"
 		else:
-			self.msgLED.data = "blue" #blue
-		self.pubSetLED.publish(self.msgLED)
+			if self.thetaError >= self.xThreshold:
+				#Error to the right
+				msgLED.data = "red"
+			elif self.thetaError <= -self.xThreshold:
+				#Error to the left
+				msgLED.data = "blue"
+			else:
+				#Error OK
+				msgLED.data = "green" #blue
+		self.pubSetLED.publish(msgLED)
 		return
 
 	def makeMsgWrench(self):
 		self.pubFalconWrench.publish(self.msgWrench)
-		pass
-
-	def makeMsgForce(self):
-		msg = falconForces()
-		if self.hapticMode == "force":
-				self.frc = np.sign(self.thetaError)*(self.frcMax-self.frcMax*np.exp(-np.power((self.thetaError/0.3), 2)))
-				#self.frc = np.sign(self.thetaError)*(self.frcMax*np.tanh(self.msgWrench.torque.z*self.thetaError/0.8))
-				print(self.frc)
-				msg.X = self.frc
-		elif self.hapticMode == "LED":
-			msg.X = 0
-		self.pubFalconForce.publish(msg)
 		return
 
+	def makeMsgForce(self):
+		msgForce = falconForces()
+		if self.hapticMode == "free" or self.hapticMode == "LED":
+			msgForce.X = 0
+		elif self.hapticMode == "force":
+			sign = np.sign(self.thetaError)
+			msgForce.X = sign*(self.hapticParams["frcGain"]-self.hapticParams["frcGain"]*np.exp(-np.power((self.thetaError/self.hapticParams["d"]), 2)))
+		else:
+			msgForce.X = 0
+		self.pubFalconForce.publish(msgForce)
+		return
+
+	def checkMode(self):
+		modes = ["free", "LED", "force"]
+		if self.hapticMode in modes:
+			self.rospy.loginfo("Haptic mode %s is OK", self.hapticMode)
+			self.invalidCount = 0
+			self.exitFlag = False
+			return True
+		else:
+			self.rospy.logwarn("Invalid '%s' Haptic mode - Retrying in 3 seconds", self.hapticMode)
+			time.sleep(3)
+			if self.invalidCount > 20:
+				self.exitFlag = True
+				self.rospy.logerr("Exiting HapticTeleop node due to invalid mode")
+				return False
+			else:
+				self.invalidCount += 1
+				return self.checkMode()
+			return False
+
 	def mainControl(self):
-		rospy.loginfo("HapticTeleop Controller OK")
-		while not self.rospy.is_shutdown():
-			if self.changeError:
-				self.makeMsgSetPoint()
+		rospy.loginfo("HapticTeleop OK")
+		if self.checkMode():
+			while not self.rospy.is_shutdown() and not self.exitFlag:
+				if self.changeError:
+					self.makeMsgSetPoint()
 				if self.changePos and self.changeJoy:
-					if self.hapticMode == "LED":
+					if self.hapticMode == "LED" or self.hapticMode == "free":
 						self.makeMsgLED()
-						self.makeMsgWrench()
-						self.changeJoy = False
-					elif self.hapticMode == "force":
-						self.makeMsgWrench()
-						self.changeJoy = False
-					else:
-						self.rospy.loginfo("Invalid haptic mode")
-			self.rate.sleep()
+					self.makeMsgWrench()
+					self.changeJoy = False
+				self.rate.sleep()
 
 if __name__ == '__main__':
 	try:

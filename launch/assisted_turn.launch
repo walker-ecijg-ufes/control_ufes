@@ -1,8 +1,0 @@
-<launch>
-    <node name="force_manager" pkg="control_ufes" type="force_manager.py" output="screen"/>
-    <node name="path_gen" pkg="control_ufes" type="path_gen.py" output="screen"/>
-    <node name="path_following" pkg="control_ufes" type="path_following.py" output="screen"/>
-    <node name="admittance" pkg="control_ufes" type="admittance.py" output="screen">
-      <rosparam file="$(find control_ufes)/config/admittance_params.yaml" command="load"/>
-    </node>
-</launch>

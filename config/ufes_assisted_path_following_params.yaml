@@ -1,0 +1,12 @@
+#Parameters for PathFollowing Controller in assisted mode
+error_pos_topic: /error_pos
+error_theta_topic: /error_theta
+theta_ref_topic: /theta_ref
+odom_topic: /odom
+V_ref: 0.5
+Ly: 3
+Lx: 3
+Ky: 0.7
+Kx: 0.7
+theta_desired_topic: /theta_desired
+path_rate: 100
