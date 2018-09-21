@@ -1,4 +1,4 @@
-#Parameters for PathFollowing Controller in assisted mode
+#Parameters for PathFollowing Controller
 error_pos_topic: /error_pos
 error_theta_topic: /error_theta
 theta_ref_topic: /theta_ref

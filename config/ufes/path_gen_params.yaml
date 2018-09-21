@@ -1,4 +1,4 @@
-#Parameters for PathGen Controller in assisted mode
+#Parameters for PathGen Controller
 path_topic: /path
 odom_topic: /odom
 error_pos_topic: /error_pos
