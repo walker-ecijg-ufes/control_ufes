@@ -1,0 +1,13 @@
+#Parameters for Admittance Controller in assisted mode
+final_vel_topic: /RosAria/cmd_vel
+shared_wrench_topic: /shared_wrench
+update_params_service: /update_parameters
+control_parameters:
+  rate: 100
+  mode: shared
+  mass: 8
+  ldaming: 10
+  inertia: 5
+  adamping: 20
+angular_vel_limit: 1
+linear_vel_limit: 0.3

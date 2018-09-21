@@ -47,7 +47,7 @@ class Control():
 		elif self.controlMode == "shared":
 			self.rospy.loginfo("[%s] Control mode '%s' is set", self.name, self.controlMode)
 			self.subWrench = self.rospy.Subscriber(self.sharedWrenchTopic, Wrench, self.callbackWrench)
-		elif self.controlMode == "assisted_teleop":
+		elif self.controlMode == "assisted_haptic":
 			self.rospy.loginfo("[%s] Control mode '%s' is set", self.name, self.controlMode)
 			self.subTrq = self.rospy.Subscriber(self.falconWrenchTopic, Wrench, self.callbackTrq)
 			self.subFrc = self.rospy.Subscriber(self.humanWrenchTopic, Wrench, self.callbackFrc)

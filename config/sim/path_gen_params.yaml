@@ -1,0 +1,9 @@
+#Parameters for PathGen Controller
+path_topic: /path
+odom_topic: /RosAria/pose
+error_pos_topic: /error_pos
+theta_ref_topic: /theta_ref
+route: soft_turn_curve
+update_params_service: /update_parameters
+path_rate: 10
+frame_id: odom
