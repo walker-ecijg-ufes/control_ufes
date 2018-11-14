@@ -1,5 +1,5 @@
 #Parameters for Admittance Controller in assisted mode
-final_vel_topic: /vel_cmd
+final_vel_topic: /cmd_vel
 human_wrench_topic: /human_wrench
 update_params_service: /update_parameters
 control_parameters:
