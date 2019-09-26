@@ -2,7 +2,7 @@
 error_pos_topic: /error_pos
 error_theta_topic: /error_theta
 theta_ref_topic: /theta_ref
-odom_topic: /odometry/filtered
+odom_topic: /odom
 V_ref: 0.5
 Ly: 3
 Lx: 3

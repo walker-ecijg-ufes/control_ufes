@@ -41,7 +41,7 @@ class ForceManager():
         self.sub_frc_right = message_filters.Subscriber(self.frc_right_topic, WrenchStamped)
         self.ts_frc = message_filters.TimeSynchronizer([self.sub_frc_left, self.sub_frc_right], 10)
         self.ts_frc.registerCallback(self.frc_callback)
-	self.sub_error_theta = self.rospy.Subscriber(self.error_theta_topic, Float32, self.error_theta_callback)
+        self.sub_error_theta = self.rospy.Subscriber(self.error_theta_topic, Float32, self.error_theta_callback)
         self.sub_falcon_wrench = self.rospy.Subscriber(self.falcon_wrench_topic, Wrench, self.falcon_wrench_callback)
         return
 
@@ -52,8 +52,8 @@ class ForceManager():
         return
 
     def initServiceClients(self):
-	self.rospy.Service(self.updateParamsService, Empty, self.callbackUpdateParams)
-	return
+        self.rospy.Service(self.updateParamsService, Empty, self.callbackUpdateParams)
+        return
 
     def initVariables(self):
         self.rate = self.rospy.Rate(self.manager_rate)
@@ -62,10 +62,10 @@ class ForceManager():
         return
 
     def callbackUpdateParams(self, req):
-	with self.param_lock:
-		self.initParameters()
-		self.rospy.loginfo("[%s] Parameter update after request", self.name)
-	return EmptyResponse()
+    	with self.param_lock:
+    		self.initParameters()
+    		self.rospy.loginfo("[%s] Parameter update after request", self.name)
+    	return EmptyResponse()
 
     def frc_callback(self, msg_left, msg_right):
         self.msg_human_wrench = Wrench()

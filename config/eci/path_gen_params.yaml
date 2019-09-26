@@ -1,6 +1,6 @@
 #Parameters for PathGen Controller
 path_topic: /path
-odom_topic: /odometry/filtered
+odom_topic: /odom
 error_pos_topic: /error_pos
 theta_ref_topic: /theta_ref
 route: soft_turn_curve

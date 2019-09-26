@@ -60,6 +60,7 @@ class PathGen():
 		self.theta_ref = Float32()
 		self.seq = self.x_bot = self.y_bot = 0
 		self.change = False
+		self.flag_end_of_path = 0
 		return
 
 	def callbackUpdateParams(self, req):
@@ -128,14 +129,15 @@ class PathGen():
 		dmin = d[loc]
 		xd_desired = self.xd[loc]
 		yd_desired = self.yd[loc]
-		if dmin < 0.04 and loc < self.xd.size:
+		if dmin < 0.1 and loc < self.xd.size:
 			loc += 1
-			xd_desired = self.xd[loc]
-			yd_desired = self.yd[loc]
-		if self.xd.size - loc <= 2:
-			flag_end_of_path = 1
-		else:
-			flag_end_of_path = 0
+			if self.xd.size - loc == 0:
+				self.flag_end_of_path = 1
+				return
+			else:
+				self.flag_end_of_path = 0
+				xd_desired = self.xd[loc]
+				yd_desired = self.yd[loc]
 		self.point.z = 0
 		self.point.x = xd_desired - self.x_bot
 		self.point.y = yd_desired - self.y_bot
@@ -164,9 +166,12 @@ class PathGen():
 				self.make_msg()
 				if self.change:
 					self.closest_point()
+					if self.flag_end_of_path == 1:
+						exit = True
 					self.change = False
 			#exit = True
 			self.rate.sleep()
+		self.rospy.loginfo("[%s] Done", self.name)
 
 if __name__ == '__main__':
 	try:
