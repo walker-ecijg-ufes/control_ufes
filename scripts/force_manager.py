@@ -62,17 +62,10 @@ class ForceManager():
         return
 
     def callbackUpdateParams(self, req):
-<<<<<<< Updated upstream
-    	with self.param_lock:
-    		self.initParameters()
-    		self.rospy.loginfo("[%s] Parameter update after request", self.name)
-    	return EmptyResponse()
-=======
         with self.param_lock:
             self.initParameters()
             self.rospy.loginfo("[%s] Parameter update after request", self.name)
         return EmptyResponse()
->>>>>>> Stashed changes
 
     def frc_callback(self, msg_left, msg_right):
         self.msg_human_wrench = Wrench()
