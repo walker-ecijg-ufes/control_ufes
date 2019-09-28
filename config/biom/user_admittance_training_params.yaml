@@ -1,0 +1,13 @@
+#Parameters for Admittance Controller in assisted mode
+final_vel_topic: /aux_cmd_vel
+human_wrench_topic: /frc
+update_params_service: /update_parameters
+control_parameters:
+  rate: 50
+  mode: user
+  mass: 1
+  ldaming: 5
+  inertia: 2.1
+  adamping: 7
+angular_vel_limit: 0.6
+linear_vel_limit: 1.5

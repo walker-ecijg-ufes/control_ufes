@@ -103,7 +103,6 @@ class Control():
 		self.frc = data.force.y
 		self.frc_z = data.force.z
 		self.trq = data.torque.z
-		self.trq_y = data.torque.y
 		self.getTime()
 		self.changeWrench = True
 		return
@@ -137,17 +136,11 @@ class Control():
 
 	def makeVelMsg(self):
 		self.msgVel = Twist()
-		if self.frc_z > 0.25 or self.frc_z < -0.25:
+		if self.frc_z > 0.25 or self.frc_z < 0.25:
 			self.msgVel.linear.x = self.vCurrent
-			#self.msgVel.angular.z = self.wCurrent
-		else:
-			self.msgVel.linear.x = 0
-			#self.msgVel.angular.z = 0
-		if self.trq_y > 0.25 or self.trq_y < -0.25:
-			#self.msgVel.linear.x = self.vCurrent
 			self.msgVel.angular.z = self.wCurrent
 		else:
-			#self.msgVel.linear.x = 0
+			self.msgVel.linear.x = 0
 			self.msgVel.angular.z = 0
 		self.pubFinalVel.publish(self.msgVel)
 
@@ -164,7 +157,7 @@ class Control():
 									self.controllerParams["b_l"],
 									self.vLimit))
 				self.wUpdate(self.getAdmittanceResponse(
-									self.trq_y,
+									self.trq,
 									self.wCurrent,
 									self.wLast,
 									self.wPrima,

@@ -46,8 +46,8 @@ class ForceManager():
         return
 
     def initPublishers(self):
-        self.pub_virtual_wrench = self.rospy.Publisher(self.virtual_wrench_topic, Wrench, queue_size = 10)
         self.pub_human_wrench = self.rospy.Publisher(self.human_wrench_topic, Wrench, queue_size = 10)
+        self.pub_virtual_wrench = self.rospy.Publisher(self.virtual_wrench_topic, Wrench, queue_size = 10)
         self.pub_shared_wrench = self.rospy.Publisher(self.shared_wrench_topic, Wrench, queue_size = 10)
         return
 
@@ -62,10 +62,17 @@ class ForceManager():
         return
 
     def callbackUpdateParams(self, req):
+<<<<<<< Updated upstream
     	with self.param_lock:
     		self.initParameters()
     		self.rospy.loginfo("[%s] Parameter update after request", self.name)
     	return EmptyResponse()
+=======
+        with self.param_lock:
+            self.initParameters()
+            self.rospy.loginfo("[%s] Parameter update after request", self.name)
+        return EmptyResponse()
+>>>>>>> Stashed changes
 
     def frc_callback(self, msg_left, msg_right):
         self.msg_human_wrench = Wrench()

@@ -1,0 +1,9 @@
+<launch>
+    <!-->Launch file for only user control of the walker. Admittance control mode must be set to 'user'<-->
+    <node name="force_manager" pkg="control_ufes" type="force_manager.py" output="screen">
+      <rosparam file="$(find control_ufes)/config/biom/user_force_manager_params.yaml" command="load"/>
+    </node>
+    <node name="admittance" pkg="control_ufes" type="admittance.py" output="screen">
+      <rosparam file="$(find control_ufes)/config/biom/user_admittance_training_params.yaml" command="load"/>
+    </node>
+</launch>
