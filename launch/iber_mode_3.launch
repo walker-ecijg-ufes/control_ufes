@@ -1,0 +1,5 @@
+<launch>
+  <node name="shared_control" pkg="control_ufes" type="shared_control.py" output="screen">
+    <rosparam file="$(find control_ufes)/config/iberdiscap/shared_mode_3.yaml" command="load"/>
+  </node>
+</launch>

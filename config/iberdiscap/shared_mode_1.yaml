@@ -1,0 +1,4 @@
+final_vel_topic: /aux_cmd_vel
+cognitive_vel_topic: /cog_cmd_vel
+control_mode: 1
+control_rate: 100

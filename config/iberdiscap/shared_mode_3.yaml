@@ -1,0 +1,5 @@
+final_vel_topic: /aux_cmd_vel
+physical_vel_topic: /phy_cmd_vel
+cognitive_vel_topic: /cog_cmd_vel
+control_mode: 3
+control_rate: 100
